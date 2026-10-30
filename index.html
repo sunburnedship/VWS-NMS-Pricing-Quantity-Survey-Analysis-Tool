@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing Survey Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f8fafc;color:#1f2937;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.5}
+  header{background:#fff;border-bottom:1px solid #e5e7eb}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  header .wrap{padding-top:18px;padding-bottom:18px}
+  h1{font-size:20px;margin:0}
+  h2{font-size:16px;margin:0 0 4px}
+  h3{font-size:14px;margin:0 0 4px}
+  .sub{color:#6b7280;font-size:12px;margin:0}
+  main{padding:24px 0 48px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px;margin-bottom:18px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .step{display:inline-block;background:#dbeafe;color:#1d4ed8;font-weight:700;font-size:11px;border-radius:999px;padding:2px 10px;margin-bottom:8px;letter-spacing:.03em}
+  .btn{display:inline-block;border:none;border-radius:10px;padding:10px 16px;font:600 13px Inter,sans-serif;cursor:pointer;text-decoration:none}
+  .btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+  .btn-secondary{background:#fff;color:#374151;border:1px solid #d1d5db}.btn-secondary:hover{background:#f9fafb}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+  .g5{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .stat{background:#f8fafc;border-radius:12px;padding:12px}
+  .stat .l{font-size:12px;color:#6b7280}.stat .v{font-size:22px;font-weight:700}.stat .s{font-size:11px;color:#9ca3af}
+  .blue{color:#1d4ed8}.green{color:#15803d}.amber{color:#b45309}.red{color:#b91c1c}
+  .opp{outline:2px solid #3b82f6}
+  input[type=text],input[type=number],select,textarea{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font:14px Inter,sans-serif;background:#fff}
+  textarea{height:70px;resize:vertical}
+  label.f{display:block;font-size:12px;font-weight:600;color:#374151;margin:10px 0 4px}
+  .hint{font-size:11px;color:#9ca3af;margin-top:3px}
+  table.map{width:100%;border-collapse:collapse}
+  table.map td{padding:6px 4px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+  table.map td:first-child{width:42%;font-size:13px}
+  .ok{color:#15803d;font-weight:700}.miss{color:#b91c1c;font-weight:700}
+  .bar{display:flex;height:22px;border-radius:8px;overflow:hidden;margin:8px 0}
+  .legend div{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .guide{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px;font-size:12px;color:#1e3a8a;margin-top:10px}
+  .err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px;margin-top:12px;display:none}
+  .warn{background:#fffbeb;color:#92400e;border-radius:10px;padding:10px;font-size:12px;margin-top:10px}
+  ul.cm{list-style:none;padding:0;margin:0}ul.cm li{background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:6px}
+  .hidden{display:none}
+  .chart{position:relative}
+  .chart svg{width:100%;height:auto;display:block;touch-action:pan-y;cursor:crosshair}
+  .tip{position:absolute;top:8px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.10);padding:8px 10px;font-size:12px;pointer-events:none;white-space:nowrap;z-index:5}
+  .tip div{margin-top:2px}
+  details summary{cursor:pointer;font-weight:600}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#4b5563}
+  footer{color:#9ca3af;font-size:11px;padding-bottom:30px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Pricing Survey Analyzer</h1>
+  <p class="sub">Van Westendorp price sensitivity · Newton-Miller-Smith purchase intent · Q = N × A × P demand forecast · Word report</p>
+</div></header>
+
+<main class="wrap">
+
+  <!-- STEP 1 -->
+  <section class="card">
+    <span class="step">STEP 1</span>
+    <h2>Load your survey responses</h2>
+    <p class="sub">In your Google Form's linked spreadsheet, choose <b>File → Download → Comma-separated values (.csv)</b> or <b>Microsoft Excel (.xlsx)</b>, then upload that file here. Your data stays in your browser.</p>
+    <div class="row" style="margin-top:14px">
+      <label class="btn btn-primary">Upload CSV or Excel file<input id="file" type="file" accept=".csv,.xlsx,.xls" class="hidden"></label>
+      <button class="btn btn-secondary" id="demoBtn">Try with demo data</button>
+      <span id="srcInfo" class="sub"></span>
+    </div>
+    <div id="err" class="err"></div>
+    <details style="margin-top:14px"><summary>Don't have a survey yet?</summary>
+      <p class="sub" style="margin-top:6px">Make a copy of the class survey template, edit Part 1 (who qualifies) and Part 2 (your product description), then open the <b>Responses</b> tab and click <b>Link to Sheets</b>. Keep the wording of the four price questions and two purchase-intent questions, or match the columns manually in Step 2.</p>
+    </details>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="card hidden" id="mapCard">
+    <span class="step">STEP 2</span>
+    <h2>Check the question matching</h2>
+    <p class="sub">The analyzer matched your spreadsheet columns to each survey question. Fix any that are wrong or missing.</p>
+    <table class="map" id="mapTable" style="margin-top:10px"></table>
+    <label class="f">Filter results by a qualification answer (optional)</label>
+    <div class="row">
+      <select id="segCol" style="max-width:420px"></select>
+      <select id="segVal" style="max-width:300px" class="hidden"></select>
+    </div>
+  </section>
+
+  <div id="results" class="hidden">
+
+    <!-- SUMMARY -->
+    <section class="card">
+      <span class="step">RESULTS</span>
+      <h2>Who answered</h2>
+      <div class="grid g4" id="sumStats" style="margin-top:10px"></div>
+      <div id="sumWarn"></div>
+    </section>
+
+    <!-- VW -->
+    <section class="card">
+      <h2>Price sensitivity (Modern Van Westendorp)</h2>
+      <p class="sub" id="vwSub"></p>
+      <div class="grid g4" id="vwPoints" style="margin-top:12px"></div>
+      <p id="vwRange" style="margin:14px 0 6px"></p>
+      <div class="chart" id="vwChart"></div>
+      <p class="sub" style="margin-top:8px">The four price points form a "baseball diamond": PMC (third base) and PME (first base) bound the acceptable range, OPP (home plate) is the single best price, and IPP (second base) is the price customers expect. The meter is a blunt tool: it ignores competitors' prices and respondents can game it.</p>
+    </section>
+
+    <!-- NMS -->
+    <section class="card">
+      <h2>Purchase intent (Newton-Miller-Smith)</h2>
+      <p class="sub">How likely respondents said they were to buy at their own acceptably cheap and acceptably expensive prices.</p>
+      <div class="grid g2" id="dists" style="margin-top:12px"></div>
+      <div class="grid g2" style="margin-top:10px">
+        <div>
+          <label class="f">Price to evaluate</label>
+          <select id="priceChoice">
+            <option value="OPP">OPP – most likely price</option>
+            <option value="PMC">PMC – low end of range</option>
+            <option value="IPP">IPP – expected price</option>
+            <option value="PME">PME – high end of range</option>
+            <option value="custom">Custom price…</option>
+          </select>
+          <input id="customPrice" type="number" placeholder="Enter a price" class="hidden" style="margin-top:6px">
+        </div>
+        <div>
+          <label class="f">Calibration constants (no sales history: 0.4 and 0.2)</label>
+          <div class="row"><input id="cdef" type="number" step="0.05" value="0.4" style="width:48%"><input id="cprob" type="number" step="0.05" value="0.2" style="width:48%"></div>
+          <p class="hint">C<sub>def</sub> for "definitely" (top box), C<sub>prob</sub> for "probably" (second box)</p>
+        </div>
+      </div>
+      <div class="grid g5" id="pStats" style="margin-top:12px"></div>
+      <div class="chart" id="pChart" style="margin-top:14px"></div>
+      <p class="sub" id="pNote"></p>
+      <div id="manualBox" class="hidden warn">No purchase-intent column was found. Enter box shares from another source:
+        <div class="row" style="margin-top:6px"><input id="mDef" type="number" placeholder="Top box %" style="width:48%"><input id="mProb" type="number" placeholder="Second box %" style="width:48%"></div></div>
+    </section>
+
+    <!-- FORECAST -->
+    <section class="card">
+      <h2>Demand forecast: Q = N × A × P</h2>
+      <div class="grid g2" style="margin-top:6px">
+        <div>
+          <h3>N – annual purchases in your market</h3>
+          <label class="f">Population you could sell to</label>
+          <input id="pop" type="number" placeholder="e.g. 1000000">
+          <p class="hint">Students at target campuses, factories in a region, annual units sold in the category…</p>
+          <label class="f">% who fit your target profile</label>
+          <input id="fit" type="number" placeholder="">
+          <p class="hint" id="fitHint"></p>
+          <label class="f">Purchases per customer per year</label>
+          <input id="freq" type="number" step="0.05" value="1">
+          <p class="hint">Durable goods are often below 1 (0.33 = replaced every 3 years).</p>
+          <label class="f">How did you estimate N? (appears in the report)</label>
+          <textarea id="nWhy" placeholder="Source of the population figure, why this filter, why this frequency"></textarea>
+          <div class="guide"><b>Top-down:</b> start from a published total (enrollment, census, industry sales) and narrow it. Example: ~1,000,000 off-campus students living 1–3 miles from the 100 largest campuses. <b>Bottom-up:</b> count buyers in segments you can name, e.g. 150,000 bicycles and scooters sold to factories per year. Cite sources.</div>
+        </div>
+        <div>
+          <h3>A – awareness × availability</h3>
+          <label class="f">Awareness: <span id="awV">25</span>%</label>
+          <input id="aw" type="range" min="0" max="100" value="25" style="width:100%">
+          <p class="hint">Share of the market that will hear about the product in year one.</p>
+          <label class="f">Availability: <span id="avV">80</span>%</label>
+          <input id="av" type="range" min="0" max="100" value="80" style="width:100%">
+          <p class="hint">Share of aware buyers who can actually get it through your channels.</p>
+          <label class="f">How did you estimate A? (appears in the report)</label>
+          <textarea id="aWhy" placeholder="Marketing plan, channel partners, comparable launches"></textarea>
+          <div class="guide">A typically ranges from about <b>0.2</b> (realistic early penetration) to <b>0.8</b> (sold everywhere, e.g. every bike shop). A single distributor's market share (e.g. 0.30) is a reasonable proxy. Be skeptical of A above 0.5 in year one.</div>
+        </div>
+      </div>
+      <div class="grid g5" id="fcStats" style="margin-top:16px"></div>
+      <p class="mono" id="fcFormula" style="margin-top:8px"></p>
+    </section>
+
+    <!-- COMMENTS -->
+    <section class="card">
+      <h2>Customer feedback</h2>
+      <div class="grid g2" style="margin-top:8px">
+        <div><h3>What have we not thought of?</h3><ul class="cm" id="cmMissed"></ul></div>
+        <div><h3>What can we improve?</h3><ul class="cm" id="cmImprove"></ul></div>
+      </div>
+    </section>
+
+    <!-- REPORT -->
+    <section class="card">
+      <span class="step">STEP 3</span>
+      <h2>Download your Word report</h2>
+      <div class="grid g2">
+        <div><label class="f">Product name</label><input id="prodName" type="text" placeholder="e.g. emPower Scooter"></div>
+        <div><label class="f">Team / author</label><input id="team" type="text" placeholder="e.g. Team 3 – TEM 431"></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn btn-primary" id="reportBtn">Download Word report (.docx)</button>
+        <span id="repMsg" class="sub"></span>
+      </div>
+    </section>
+  </div>
+
+  <footer>Pricing Survey Analyzer v1.1 · All calculations run in your browser; no data is uploaded.</footer>
+</main>
+
+<script>
+/* ============================== helpers ============================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const num = v => { if (v === null || v === undefined) return NaN; const s = String(v).replace(/[$,\s]/g, ""); return s === "" ? NaN : parseFloat(s); };
+const money = v => (v === null || v === undefined || isNaN(v)) ? "—" : "$" + (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v).toFixed(2));
+const pct = (v, d = 1) => (v === null || v === undefined || isNaN(v)) ? "—" : (v * 100).toFixed(d) + "%";
+const intentScore = v => {
+  const s = String(v ?? "").toLowerCase().trim(); if (!s) return 0;
+  const n = Number(s); if (Number.isInteger(n) && n >= 1 && n <= 5) return n;
+  if (s.includes("might")) return 3;
+  if (s.includes("not")) return s.includes("definitely") ? 1 : 2;
+  if (s.includes("definitely")) return 5;
+  if (s.includes("probably")) return 4;
+  return 0;
+};
+const INTENT = {5:["Definitely buy","#16a34a"],4:["Probably buy","#4ade80"],3:["Might or might not","#fbbf24"],2:["Probably not","#f87171"],1:["Definitely not","#b91c1c"]};
+
+const FIELDS = [
+  ["tooCheap",   "Price: too cheap (would doubt quality)", true],
+  ["cheap",      "Price: acceptably cheap (a bargain)", true],
+  ["expensive",  "Price: acceptably expensive (would still consider)", true],
+  ["tooExpensive","Price: too expensive (would not consider)", true],
+  ["intentCheap","Purchase intent at the acceptably cheap price", false],
+  ["intentExp",  "Purchase intent at the acceptably expensive price", false],
+  ["missed",     "Comment: what have we not thought of?", false],
+  ["improve",    "Comment: what can we improve?", false],
+];
+
+const S = { rows: [], headers: [], map: {}, source: "", seg: { col: "", val: "" }, res: null };
+
+/* ============================== loading ============================== */
+function showErr(m) { const e = $("#err"); e.textContent = m; e.style.display = m ? "block" : "none"; }
+
+$("#file").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return; showErr("");
+  try {
+    let rows;
+    if (/\.csv$/i.test(f.name)) {
+      rows = Papa.parse(await f.text(), { header: true, skipEmptyLines: true, transformHeader: h => h.trim() }).data;
+    } else {
+      const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "", raw: false });
+    }
+    loadRows(rows, f.name);
+  } catch (x) { showErr("Could not read that file: " + x.message); }
+  e.target.value = "";
+});
+$("#demoBtn").addEventListener("click", () => loadRows(makeDemo(), "Demo data (synthetic scooter survey, 80 responses)"));
+
+function loadRows(rows, source) {
+  rows = rows.filter(r => Object.values(r).some(v => String(v ?? "").trim() !== ""));
+  if (!rows.length) { showErr("No responses found in that file."); return; }
+  S.rows = rows; S.source = source;
+  S.headers = Object.keys(rows[0]);
+  S.map = detectMap(S.headers);
+  S.seg = { col: "", val: "" };
+  $("#srcInfo").textContent = `Loaded ${rows.length} rows from ${source}`;
+  buildMapUI(); buildSegUI();
+  $("#mapCard").classList.remove("hidden");
+  run();
+}
+
+// Match spreadsheet columns to survey questions by wording
+function detectMap(headers) {
+  const m = {};
+  const set = (k, h) => { if (!m[k]) m[k] = h; };
+  headers.forEach(h => {
+    const s = h.toLowerCase().replace(/_/g, " ");
+    if (/timestamp|email/.test(s)) return;
+    if (/likely|intent/.test(s)) {
+      if (/bargain|cheap/.test(s)) set("intentCheap", h);
+      else if (/expensive/.test(s)) set("intentExp", h);
+      return;
+    }
+    if (/too expensive/.test(s)) return set("tooExpensive", h);
+    if (/doubt|too cheap|so cheap/.test(s)) return set("tooCheap", h);
+    if (/bargain|acceptably cheap|\bcheap\b/.test(s)) return set("cheap", h);
+    if (/expensive/.test(s)) return set("expensive", h);
+    if (/thought of|missed|missing/.test(s)) return set("missed", h);
+    if (/improve/.test(s)) return set("improve", h);
+  });
+  return m;
+}
+
+function buildMapUI() {
+  const opts = h => `<option value="">— not in my data —</option>` + S.headers.map(x => `<option value="${esc(x)}" ${x === h ? "selected" : ""}>${esc(x.length > 90 ? x.slice(0, 90) + "…" : x)}</option>`).join("");
+  $("#mapTable").innerHTML = FIELDS.map(([k, label, req]) =>
+    `<tr><td><span class="${S.map[k] ? "ok" : (req ? "miss" : "sub")}">${S.map[k] ? "✓" : (req ? "✗" : "–")}</span> ${label}${req ? "" : ' <span class="sub">(optional)</span>'}</td>
+     <td><select data-k="${k}">${opts(S.map[k])}</select></td></tr>`).join("");
+  $("#mapTable").querySelectorAll("select").forEach(sel => sel.addEventListener("change", () => {
+    S.map[sel.dataset.k] = sel.value || undefined; buildMapUI(); buildSegUI(); run();
+  }));
+}
+
+function segCandidates() {
+  const used = new Set(Object.values(S.map).filter(Boolean));
+  return S.headers.filter(h => !used.has(h) && !/timestamp|email/i.test(h) && h.toLowerCase() !== "qualified").filter(h => {
+    const u = new Set(S.rows.map(r => String(r[h] ?? "").trim()).filter(Boolean));
+    return u.size >= 2 && u.size <= 15;
+  });
+}
+function buildSegUI() {
+  const cols = segCandidates();
+  $("#segCol").innerHTML = `<option value="">All respondents</option>` + cols.map(c => `<option value="${esc(c)}" ${c === S.seg.col ? "selected" : ""}>${esc(c)}</option>`).join("");
+  buildSegVals();
+}
+function buildSegVals() {
+  const sv = $("#segVal");
+  if (!S.seg.col) { sv.classList.add("hidden"); return; }
+  const vals = [...new Set(S.rows.map(r => String(r[S.seg.col] ?? "").trim()).filter(Boolean))].sort();
+  sv.innerHTML = `<option value="">(choose a value)</option>` + vals.map(v => `<option value="${esc(v)}" ${v === S.seg.val ? "selected" : ""}>${esc(v)}</option>`).join("");
+  sv.classList.remove("hidden");
+}
+$("#segCol").addEventListener("change", e => { S.seg = { col: e.target.value, val: "" }; buildSegVals(); run(); });
+$("#segVal").addEventListener("change", e => { S.seg.val = e.target.value; run(); });
+
+/* ============================== analysis ============================== */
+function analyze() {
+  const M = S.map, st = { total: 0, screened: 0, illogical: 0, used: 0 };
+  const qCol = S.headers.find(h => h.trim().toLowerCase() === "qualified");
+  const resp = [];
+  S.rows.forEach(r => {
+    if (S.seg.col && S.seg.val && String(r[S.seg.col] ?? "").trim() !== S.seg.val) return;
+    st.total++;
+    if (qCol && /^(no|false|0|n)$/i.test(String(r[qCol]).trim())) { st.screened++; return; }
+    const p = ["tooCheap", "cheap", "expensive", "tooExpensive"].map(k => M[k] ? num(r[M[k]]) : NaN);
+    if (p.some(isNaN)) { st.screened++; return; }
+    const [tc, c, e, te] = p;
+    if (!(tc <= c && c <= e && e <= te && tc < te)) { st.illogical++; return; }
+    resp.push({ tc, c, e, te,
+      ic: M.intentCheap ? intentScore(r[M.intentCheap]) : 0,
+      ie: M.intentExp ? intentScore(r[M.intentExp]) : 0,
+      missed: M.missed ? String(r[M.missed] ?? "").trim() : "",
+      improve: M.improve ? String(r[M.improve] ?? "").trim() : "" });
+  });
+  st.used = resp.length;
+  return { resp, st };
+}
+
+function computeVW(resp) {
+  const n = resp.length;
+  const prices = [...new Set(resp.flatMap(r => [r.tc, r.c, r.e, r.te]))].sort((a, b) => a - b);
+  const share = (k, p) => resp.filter(r => r[k] <= p).length / n;
+  const curve = prices.map(p => ({ price: p,
+    notTooCheap: 1 - share("tc", p), notCheap: 1 - share("c", p),
+    expensive: share("e", p), tooExpensive: share("te", p) }));
+  const cross = (a, b) => {
+    for (let i = 1; i < curve.length; i++) {
+      const m0 = curve[i - 1], m1 = curve[i], d0 = m0[a] - m0[b], d1 = m1[a] - m1[b];
+      if (d0 === 0) return { price: m0.price, y: m0[a] };
+      if ((d0 > 0 && d1 <= 0) || (d0 < 0 && d1 >= 0)) {
+        const t = d0 / (d0 - d1);
+        return { price: m0.price + t * (m1.price - m0.price), y: m0[a] + t * (m1[a] - m0[a]) };
+      }
+    }
+    return null;
+  };
+  return { curve, n, pts: {
+    PMC: cross("notTooCheap", "expensive"), OPP: cross("notTooCheap", "tooExpensive"),
+    PME: cross("notCheap", "tooExpensive"), IPP: cross("notCheap", "expensive") } };
+}
+
+// Top-box / second-box share at price x. Each respondent's answers are interpolated between their
+// acceptably cheap and acceptably expensive prices; below Too Cheap or at/above Too Expensive = non-buyer.
+function boxesAt(list, x) {
+  if (!list.length || x === null || x === undefined || isNaN(x)) return null;
+  let d = 0, p = 0;
+  list.forEach(r => {
+    if (x < r.tc || x >= r.te) return;
+    const a = { d: r.ic === 5 ? 1 : 0, p: r.ic === 4 ? 1 : 0 }, b = { d: r.ie === 5 ? 1 : 0, p: r.ie === 4 ? 1 : 0 };
+    let t = x <= r.c || r.e <= r.c ? 0 : x >= r.e ? 1 : (x - r.c) / (r.e - r.c);
+    d += a.d + (b.d - a.d) * t; p += a.p + (b.p - a.p) * t;
+  });
+  return { fdef: d / list.length, fprob: p / list.length };
+}
+
+/* ============================== chart (SVG) ============================== */
+function svgChart({ data, series, W = 760, H = 340, yDomain, yFmt, y2Fmt, xFmt = v => "$" + Math.round(v), refDots = [], refX }) {
+  if (!data || data.length < 2) return "";
+  const m = { t: 28, r: y2Fmt ? 64 : 20, b: 64, l: 56 };
+  const xs = data.map(d => d.price), x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const ext = ax => { const v = []; series.filter(s => (s.axis || "l") === ax).forEach(s => data.forEach(d => v.push(d[s.key]))); return v.length ? [Math.min(0, ...v), Math.max(...v) || 1] : [0, 1]; };
+  const dl = yDomain || ext("l"), dr = ext("r");
+  const sx = x => m.l + (x - x0) / ((x1 - x0) || 1) * (W - m.l - m.r);
+  const sy = (y, ax) => { const d = ax === "r" ? dr : dl; return H - m.b - (y - d[0]) / ((d[1] - d[0]) || 1) * (H - m.t - m.b); };
+  const ticks = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => a + (b - a) * i / n);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Arial, Helvetica, sans-serif"><rect width="${W}" height="${H}" fill="#ffffff"/>`;
+  ticks(dl[0], dl[1], 5).forEach(t => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${sy(t)}" y2="${sy(t)}" stroke="#e5e7eb" stroke-dasharray="3 3"/><text x="${m.l - 8}" y="${sy(t) + 4}" font-size="11" text-anchor="end" fill="#6b7280">${yFmt(t)}</text>`; });
+  if (y2Fmt) ticks(dr[0], dr[1], 5).forEach(t => { s += `<text x="${W - m.r + 8}" y="${sy(t, "r") + 4}" font-size="11" fill="#6b7280">${y2Fmt(t)}</text>`; });
+  ticks(x0, x1, 8).forEach(t => { s += `<text x="${sx(t)}" y="${H - m.b + 18}" font-size="11" text-anchor="middle" fill="#6b7280">${xFmt(t)}</text>`; });
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="#9ca3af"/>`;
+  series.forEach(se => { s += `<path fill="none" stroke="${se.color}" stroke-width="2.5" d="${data.map((d, i) => (i ? "L" : "M") + sx(d.price).toFixed(1) + "," + sy(d[se.key], se.axis).toFixed(1)).join("")}"/>`; });
+  if (refX !== undefined && refX !== null && !isNaN(refX) && refX >= x0 && refX <= x1)
+    s += `<line x1="${sx(refX)}" x2="${sx(refX)}" y1="${m.t}" y2="${H - m.b}" stroke="#111827" stroke-dasharray="5 4"/><text x="${sx(refX)}" y="${m.t - 8}" font-size="11" text-anchor="middle" fill="#111827">${money(refX)}</text>`;
+  refDots.filter(Boolean).forEach(p => { s += `<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="6" fill="#111827" stroke="#fff" stroke-width="2"/><text x="${sx(p.x)}" y="${sy(p.y) - 11}" font-size="12" font-weight="700" text-anchor="middle" fill="#111827">${p.label}</text>`; });
+  series.forEach((se, i) => { const x = m.l + i * (W - m.l - m.r) / series.length; s += `<rect x="${x}" y="${H - 26}" width="14" height="4" fill="${se.color}"/><text x="${x + 20}" y="${H - 21}" font-size="12" fill="#374151">${esc(se.name)}</text>`; });
+  return s + "</svg>";
+}
+const VW_SERIES = [
+  { key: "notTooCheap", name: "Not Too Cheap", color: "#3b82f6" }, { key: "notCheap", name: "Not Cheap", color: "#22c55e" },
+  { key: "expensive", name: "Expensive", color: "#f59e0b" }, { key: "tooExpensive", name: "Too Expensive", color: "#ef4444" }];
+const P_SERIES = [{ key: "P", name: "Purchase probability P", color: "#2563eb" }, { key: "rev", name: "Revenue per prospect (price × P)", color: "#9333ea", axis: "r" }];
+
+// Same scales as svgChart, used to position the hover guide
+function chartGeom({ data, series, W = 760, H = 340, yDomain, y2Fmt }) {
+  const m = { t: 28, r: y2Fmt ? 64 : 20, b: 64, l: 56 };
+  const xs = data.map(d => d.price), x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const ext = ax => { const v = []; series.filter(s => (s.axis || "l") === ax).forEach(s => data.forEach(d => v.push(d[s.key]))); return v.length ? [Math.min(0, ...v), Math.max(...v) || 1] : [0, 1]; };
+  const dl = yDomain || ext("l"), dr = ext("r");
+  const sx = x => m.l + (x - x0) / ((x1 - x0) || 1) * (W - m.l - m.r);
+  const sy = (y, ax) => { const d = ax === "r" ? dr : dl; return H - m.b - (y - d[0]) / ((d[1] - d[0]) || 1) * (H - m.t - m.b); };
+  return { W, H, m, sx, sy };
+}
+
+// Draws a chart into the page with a hover guide line, curve markers, and a value tooltip
+function renderChart(el, opts, tipFmt) {
+  const svgStr = svgChart(opts);
+  if (!svgStr) { el.innerHTML = ""; return; }
+  el.innerHTML = svgStr + '<div class="tip hidden"></div>';
+  const g = chartGeom(opts), svg = el.querySelector("svg"), tip = el.querySelector(".tip"), NS = "http://www.w3.org/2000/svg";
+  const guide = document.createElementNS(NS, "line");
+  guide.setAttribute("stroke", "#9ca3af"); guide.setAttribute("stroke-width", "1");
+  guide.setAttribute("y1", g.m.t); guide.setAttribute("y2", g.H - g.m.b); guide.style.display = "none";
+  svg.appendChild(guide);
+  const marks = opts.series.map(s => {
+    const c = document.createElementNS(NS, "circle");
+    c.setAttribute("r", "5"); c.setAttribute("fill", s.color); c.setAttribute("stroke", "#fff"); c.setAttribute("stroke-width", "2");
+    c.style.display = "none"; svg.appendChild(c); return c;
+  });
+  const hide = () => { guide.style.display = "none"; marks.forEach(c => c.style.display = "none"); tip.classList.add("hidden"); };
+  svg.addEventListener("pointermove", e => {
+    const rect = svg.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width * g.W;
+    if (px < g.m.l - 10 || px > g.W - g.m.r + 10) { hide(); return; }
+    let best = 0, bd = Infinity;
+    opts.data.forEach((d, i) => { const dd = Math.abs(g.sx(d.price) - px); if (dd < bd) { bd = dd; best = i; } });
+    const d = opts.data[best], x = g.sx(d.price);
+    guide.setAttribute("x1", x); guide.setAttribute("x2", x); guide.style.display = "";
+    marks.forEach((c, i) => { const s = opts.series[i]; c.setAttribute("cx", x); c.setAttribute("cy", g.sy(d[s.key], s.axis)); c.style.display = ""; });
+    tip.innerHTML = `<b>Price ${money(d.price)}</b>` + opts.series.map(s => `<div><span class="sw" style="background:${s.color}"></span>${esc(s.name)}: <b>${tipFmt(d[s.key], s)}</b></div>`).join("");
+    tip.classList.remove("hidden");
+    const left = x / g.W * rect.width;
+    tip.style.left = (left > rect.width * 0.55 ? left - tip.offsetWidth - 14 : left + 14) + "px";
+  });
+  svg.addEventListener("pointerleave", hide);
+}
+
+/* ============================== render ============================== */
+const stat = (l, v, cls = "", sub = "") => `<div class="stat"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>`;
+const val = id => $(id).value;
+
+function run() {
+  const required = FIELDS.filter(f => f[2]).every(f => S.map[f[0]]);
+  if (!required) { $("#results").classList.add("hidden"); showErr("Match all four price questions in Step 2 to see results."); return; }
+  showErr("");
+  const { resp, st } = analyze();
+  S.res = { resp, st };
+  $("#results").classList.remove("hidden");
+
+  $("#sumStats").innerHTML = stat("Responses", st.total) + stat("Screened out or incomplete", st.screened, "amber", "Failed qualification or skipped prices")
+    + stat("Illogical price order", st.illogical, "red", "Prices not in rising order") + stat("Used in analysis", st.used, "green");
+  $("#sumWarn").innerHTML = st.used < 30 ? `<div class="warn">Only ${st.used} usable responses. Results below 30 are noisy; treat the prices as rough.</div>` : "";
+  if (st.used < 2) { ["#vwPoints", "#vwChart", "#dists", "#pChart", "#pStats"].forEach(i => $(i).innerHTML = ""); S.res.vw = null; updateForecast(); return; }
+
+  const vw = computeVW(resp); S.res.vw = vw;
+  $("#vwSub").textContent = `Based on ${vw.n} respondents${S.seg.col && S.seg.val ? ` where "${S.seg.col}" = ${S.seg.val}` : ""}.`;
+  const P = vw.pts;
+  $("#vwPoints").innerHTML = [["PMC", "Third base", "Point of Marginal Cheapness"], ["OPP", "Home plate", "Optimal Price Point"], ["PME", "First base", "Point of Marginal Expensiveness"], ["IPP", "Second base", "Indifference Price Point"]]
+    .map(([k, b, n]) => `<div class="stat ${k === "OPP" ? "opp" : ""}"><div class="l">${b} · ${k}</div><div class="v blue">${money(P[k]?.price)}</div><div class="s">${n}</div></div>`).join("");
+  $("#vwRange").innerHTML = `Acceptable price range: <b>${money(P.PMC?.price)} – ${money(P.PME?.price)}</b> · Recommended price (OPP): <b>${money(P.OPP?.price)}</b>`;
+  renderChart($("#vwChart"), { data: vw.curve, series: VW_SERIES, yDomain: [0, 1], yFmt: v => Math.round(v * 100) + "%",
+    refDots: Object.entries(P).map(([k, p]) => p ? { label: k, x: p.price, y: p.y } : null) }, v => pct(v));
+
+  const nms = resp.filter(r => r.ic && r.ie); S.res.nms = nms;
+  $("#manualBox").classList.toggle("hidden", nms.length > 0);
+  $("#dists").innerHTML = nms.length ? [["ic", "At each respondent's acceptably cheap price"], ["ie", "At each respondent's acceptably expensive price"]].map(([k, t]) => {
+    const c = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }; nms.forEach(r => c[r[k]]++); const n = nms.length;
+    return `<div><h3>${t}</h3><div class="bar">${[5, 4, 3, 2, 1].map(s => `<div style="width:${c[s] / n * 100}%;background:${INTENT[s][1]}"></div>`).join("")}</div>
+      <div class="legend">${[5, 4, 3, 2, 1].map(s => `<div><span><span class="sw" style="background:${INTENT[s][1]}"></span>${INTENT[s][0]}${s === 5 ? " (top box)" : s === 4 ? " (second box)" : ""}</span><b>${c[s]} · ${pct(c[s] / n, 0)}</b></div>`).join("")}</div></div>`;
+  }).join("") : "";
+
+  // P curve across the price range
+  const lo = Math.min(...resp.map(r => r.tc)), hi = Math.max(...resp.map(r => r.te));
+  S.res.curveRange = [lo, hi];
+  updatePrice();
+}
+
+function getConsts() { return { cdef: num(val("#cdef")) || 0, cprob: num(val("#cprob")) || 0 }; }
+function selectedPrice() {
+  const ch = val("#priceChoice");
+  if (ch === "custom") return { price: num(val("#customPrice")), label: "Custom price" };
+  const p = S.res?.vw?.pts[ch]?.price;
+  return { price: p, label: { OPP: "OPP (most likely price)", PMC: "PMC (low end of range)", IPP: "IPP (expected price)", PME: "PME (high end of range)" }[ch] };
+}
+
+function updatePrice() {
+  if (!S.res?.vw) { updateForecast(); return; }
+  const { cdef, cprob } = getConsts();
+  const sel = selectedPrice(), nms = S.res.nms || [];
+  let box = nms.length ? boxesAt(nms, sel.price) : null;
+  if (!nms.length) { const d = num(val("#mDef")), p = num(val("#mProb")); box = (!isNaN(d) && !isNaN(p)) ? { fdef: d / 100, fprob: p / 100 } : null; }
+  const P = box ? cdef * box.fdef + cprob * box.fprob : null;
+  S.res.sel = sel; S.res.box = box; S.res.P = P;
+
+  $("#pStats").innerHTML = stat("Price", money(sel.price), "", sel.label) + stat("Top box (definitely)", pct(box?.fdef)) + stat("Second box (probably)", pct(box?.fprob))
+    + stat("Formula", `${cdef}×F<sub>def</sub> + ${cprob}×F<sub>prob</sub>`, "", "") + stat("P – probability of purchase", pct(P, 2), "blue");
+
+  if (nms.length) {
+    const [lo, hi] = S.res.curveRange, data = [];
+    for (let i = 0; i <= 60; i++) { const x = lo + (hi - lo) * i / 60, b = boxesAt(nms, x), p = cdef * b.fdef + cprob * b.fprob; data.push({ price: x, P: p, rev: x * p }); }
+    S.res.pCurve = data;
+    const best = data.reduce((a, b) => b.rev > a.rev ? b : a);
+    renderChart($("#pChart"), { data, series: P_SERIES, yFmt: v => (v * 100).toFixed(1) + "%", y2Fmt: v => "$" + v.toFixed(0), refX: sel.price },
+      (v, s) => s.key === "P" ? pct(v, 2) : money(v));
+    $("#pNote").innerHTML = `Revenue per prospect peaks near <b>${money(best.price)}</b>. The OPP is the price customers find most acceptable; the revenue peak is where price × probability is highest. They answer different questions.`;
+    S.res.bestRev = best.price;
+  } else { $("#pChart").innerHTML = ""; $("#pNote").innerHTML = ""; S.res.pCurve = null; }
+  updateForecast();
+}
+
+function updateForecast() {
+  const st = S.res?.st;
+  const qualRate = st && st.total ? (st.total - st.screened) / st.total : 1;
+  $("#fitHint").textContent = `Leave blank to use ${(qualRate * 100).toFixed(1)}%, the share of your respondents who qualified. That is only valid if you surveyed a random slice of this population.`;
+  $("#awV").textContent = val("#aw"); $("#avV").textContent = val("#av");
+  const fit = val("#fit") === "" ? qualRate : num(val("#fit")) / 100;
+  const N = (num(val("#pop")) || 0) * fit * (num(val("#freq")) || 0);
+  const A = (num(val("#aw")) / 100) * (num(val("#av")) / 100);
+  const P = S.res?.P ?? null, price = S.res?.sel?.price;
+  const Q = P !== null ? N * A * P : null, rev = Q !== null && !isNaN(price) ? Q * price : null;
+  S.fc = { N, A, P, Q, rev, fit, price };
+  $("#fcStats").innerHTML = stat("N (purchases/yr)", Math.round(N).toLocaleString()) + stat("A", pct(A)) + stat("P", pct(P, 2))
+    + stat("Q (units/yr)", Q === null ? "—" : Math.round(Q).toLocaleString(), "blue") + stat("Annual revenue", rev === null ? "—" : "$" + Math.round(rev).toLocaleString(), "green", "at " + money(price));
+  $("#fcFormula").textContent = `Q = ${Math.round(N).toLocaleString()} × ${A.toFixed(3)} × ${P === null ? "—" : P.toFixed(4)} = ${Q === null ? "—" : Math.round(Q).toLocaleString()} units per year`;
+  const r = S.res?.resp || [];
+  const li = k => { const L = r.filter(x => x[k]); return L.length ? L.map(x => `<li>${esc(x[k])}</li>`).join("") : `<li class="sub">No comments.</li>`; };
+  $("#cmMissed").innerHTML = li("missed"); $("#cmImprove").innerHTML = li("improve");
+}
+
+["#priceChoice", "#customPrice", "#cdef", "#cprob", "#mDef", "#mProb"].forEach(id => $(id).addEventListener("input", () => {
+  $("#customPrice").classList.toggle("hidden", val("#priceChoice") !== "custom"); updatePrice(); }));
+["#pop", "#fit", "#freq", "#aw", "#av"].forEach(id => $(id).addEventListener("input", updateForecast));
+
+/* ============================== Word report (.docx) ============================== */
+const X = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const run_ = (t, o = {}) => `<w:r>${(o.b || o.i || o.color) ? `<w:rPr>${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}${o.color ? `<w:color w:val="${o.color}"/>` : ""}</w:rPr>` : ""}<w:t xml:space="preserve">${X(t)}</w:t></w:r>`;
+const para = (content, o = {}) => {
+  const runs = Array.isArray(content) ? content.join("") : run_(content, o);
+  const pp = (o.style ? `<w:pStyle w:val="${o.style}"/>` : "") + (o.after !== undefined ? `<w:spacing w:after="${o.after}"/>` : "") + (o.ind ? `<w:ind w:left="${o.ind}" w:hanging="${o.hang || 0}"/>` : "");
+  return `<w:p>${pp ? `<w:pPr>${pp}</w:pPr>` : ""}${runs}</w:p>`;
+};
+const H1 = t => para(t, { style: "Heading1" }), H2 = t => para(t, { style: "Heading2" });
+const bullet = t => para("•  " + t, { ind: 360, hang: 220, after: 40 });
+const tbl = (rows, widths) => {
+  const bd = ["top", "left", "bottom", "right", "insideH", "insideV"].map(s => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="BFBFBF"/>`).join("");
+  return `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:tblBorders>${bd}</w:tblBorders><w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr>`
+    + `<w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>`
+    + rows.map((r, i) => `<w:tr>${r.map((c, j) => `<w:tc><w:tcPr><w:tcW w:w="${widths[j]}" w:type="dxa"/>${i === 0 ? '<w:shd w:val="clear" w:color="auto" w:fill="DCE6F2"/>' : ""}</w:tcPr>${para(String(c), { b: i === 0, after: 0 })}</w:tc>`).join("")}</w:tr>`).join("")
+    + `</w:tbl>` + para("", { after: 60 });
+};
+const imgPara = (rid, id, wIn, hIn) => {
+  const cx = Math.round(wIn * 914400), cy = Math.round(hIn * 914400);
+  return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Chart ${id}"/>`
+    + `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">`
+    + `<pic:nvPicPr><pic:cNvPr id="${id}" name="chart${id}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`
+    + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+};
+
+function svgToPng(svg, w, h) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas"); c.width = w * 2; c.height = h * 2;
+      const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => b ? b.arrayBuffer().then(a => resolve(new Uint8Array(a))) : reject(new Error("Chart image failed")), "image/png");
+    };
+    img.onerror = () => reject(new Error("Chart image failed"));
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  });
+}
+
+const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="21"/><w:szCs w:val="21"/><w:lang w:val="en-US"/></w:rPr></w:rPrDefault>
+<w:pPrDefault><w:pPr><w:spacing w:after="100" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="40"/></w:pPr><w:rPr><w:b/><w:color w:val="1F3864"/><w:sz w:val="40"/><w:szCs w:val="40"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="80"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="1F3864"/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="160" w:after="60"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:color w:val="2E74B5"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
+</w:styles>`;
+
+$("#reportBtn").addEventListener("click", async () => {
+  const msg = $("#repMsg");
+  if (!S.res?.vw) { msg.textContent = "Load data with at least two usable responses first."; return; }
+  msg.textContent = "Building report…";
+  try {
+    const { st, vw, sel, box, P, nms } = S.res, fc = S.fc, pts = vw.pts;
+    const prod = val("#prodName").trim() || "Product", team = val("#team").trim();
+    const { cdef, cprob } = getConsts();
+    const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const segTxt = S.seg.col && S.seg.val ? `${S.seg.col} = ${S.seg.val}` : "All respondents";
+    const W = 10080; // 7-inch text width in twips
+
+    // charts → PNG
+    const imgs = [];
+    imgs.push(await svgToPng(svgChart({ data: vw.curve, series: VW_SERIES, yDomain: [0, 1], yFmt: v => Math.round(v * 100) + "%", refDots: Object.entries(pts).map(([k, p]) => p ? { label: k, x: p.price, y: p.y } : null) }), 760, 340));
+    if (S.res.pCurve) imgs.push(await svgToPng(svgChart({ data: S.res.pCurve, series: P_SERIES, yFmt: v => (v * 100).toFixed(1) + "%", y2Fmt: v => "$" + v.toFixed(0), refX: sel.price }), 760, 340));
+    const ih = 6.5 * 340 / 760;
+
+    let b = "";
+    b += para(`Pricing Research Report: ${prod}`, { style: "Title" });
+    b += para([run_([team, date].filter(Boolean).join("  ·  "), { color: "595959" })], { after: 200 });
+
+    b += H1("1. Summary");
+    b += para(`Of ${st.total} survey responses, ${st.used} were usable for analysis (${st.screened} screened out or incomplete, ${st.illogical} with prices out of order). Segment analyzed: ${segTxt}.`);
+    b += para([run_("Recommended price: ", { b: true }), run_(`${money(pts.OPP?.price)} (Optimal Price Point). Customers find prices between ${money(pts.PMC?.price)} and ${money(pts.PME?.price)} acceptable, and expect to pay about ${money(pts.IPP?.price)}.`)]);
+    if (P !== null) b += para([run_("Purchase probability: ", { b: true }), run_(`At ${money(sel.price)}, the calibrated probability of purchase is P = ${pct(P, 2)}.`)]);
+    if (fc.Q !== null && fc.N > 0) b += para([run_("Forecast: ", { b: true }), run_(`About ${Math.round(fc.Q).toLocaleString()} units per year, or $${Math.round(fc.rev).toLocaleString()} in annual revenue at ${money(fc.price)}.`)]);
+
+    b += H1("2. Survey Sample");
+    b += tbl([["Measure", "Count"], ["Total responses", st.total], ["Screened out or incomplete", st.screened], ["Illogical price order (excluded)", st.illogical], ["Used in analysis", st.used], ["Segment filter", segTxt]], [7000, 3080]);
+    if (st.used < 30) b += para(`Caution: fewer than 30 usable responses. Treat the price points as rough estimates.`, { i: true });
+
+    b += H1("3. Price Sensitivity (Modern Van Westendorp)");
+    b += tbl([["Price point", "Diamond position", "Price", "Meaning"],
+      ["PMC – Point of Marginal Cheapness", "Third base", money(pts.PMC?.price), "Lower bound of acceptable range"],
+      ["OPP – Optimal Price Point", "Home plate", money(pts.OPP?.price), "Recommended single price"],
+      ["PME – Point of Marginal Expensiveness", "First base", money(pts.PME?.price), "Upper bound of acceptable range"],
+      ["IPP – Indifference Price Point", "Second base", money(pts.IPP?.price), "Price customers expect to pay"]], [3400, 1500, 1200, 3980]);
+    b += imgPara("rIdImg1", 1, 6.5, ih);
+    b += para("Figure 1. Modern Van Westendorp Price Sensitivity Meter (Cheap and Too Cheap curves inverted).", { i: true, after: 160 });
+
+    b += H1("4. Purchase Intent (Newton-Miller-Smith)");
+    if (nms && nms.length) {
+      const cnt = k => { const c = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }; nms.forEach(r => c[r[k]]++); return c; };
+      const ci = cnt("ic"), ce = cnt("ie"), n = nms.length;
+      b += tbl([["Response", "At acceptably cheap price", "At acceptably expensive price"],
+        ...[5, 4, 3, 2, 1].map(s => [INTENT[s][0] + (s === 5 ? " (top box)" : s === 4 ? " (second box)" : ""), `${ci[s]} (${pct(ci[s] / n, 0)})`, `${ce[s]} (${pct(ce[s] / n, 0)})`])], [3880, 3100, 3100]);
+    }
+    b += tbl([["Input", "Value"], ["Price evaluated", `${money(sel.price)} – ${sel.label}`], ["Top-box share (definitely), Fdef", pct(box?.fdef)], ["Second-box share (probably), Fprob", pct(box?.fprob)],
+      ["Calibration constants", `Cdef = ${cdef}, Cprob = ${cprob}`], ["P = Cdef × Fdef + Cprob × Fprob", pct(P, 2)]], [6000, 4080]);
+    if (imgs[1]) {
+      b += imgPara("rIdImg2", 2, 6.5, ih);
+      b += para(`Figure 2. Purchase probability and revenue per prospect across prices. Revenue per prospect peaks near ${money(S.res.bestRev)}.`, { i: true, after: 160 });
+    }
+
+    b += H1("5. Demand Forecast (Q = N × A × P)");
+    b += tbl([["Component", "Value"],
+      ["Population", (num(val("#pop")) || 0).toLocaleString()], ["Share fitting target profile", pct(fc.fit)], ["Purchases per customer per year", val("#freq")],
+      ["N – annual purchases", Math.round(fc.N).toLocaleString()], ["Awareness", val("#aw") + "%"], ["Availability", val("#av") + "%"], ["A – awareness × availability", pct(fc.A)],
+      ["P – probability of purchase", pct(fc.P, 2)], ["Q – forecast units per year", fc.Q === null ? "—" : Math.round(fc.Q).toLocaleString()],
+      ["Projected annual revenue", fc.rev === null ? "—" : "$" + Math.round(fc.rev).toLocaleString()]], [6000, 4080]);
+    b += H2("How N was estimated"); b += para(val("#nWhy").trim() || "Not provided.");
+    b += H2("How A was estimated"); b += para(val("#aWhy").trim() || "Not provided.");
+
+    b += H1("6. Customer Feedback");
+    const fb = k => { const L = S.res.resp.filter(r => r[k]); return L.length ? L.map(r => bullet(r[k])).join("") : para("No comments.", { i: true }); };
+    b += H2("What have we not thought of?") + fb("missed");
+    b += H2("What can we improve before detailed design?") + fb("improve");
+
+    b += H1("7. Method Notes");
+    b += para("Price sensitivity uses the Modern Van Westendorp method: cumulative percentages of each price question in rising price order, with the Cheap and Too Cheap curves inverted. The four price points are where the curves cross, interpolated between observed prices.");
+    b += para("Purchase intent uses the Newton-Miller-Smith approach. Each respondent rated their likelihood of buying at their own acceptably cheap and acceptably expensive prices; answers are interpolated between those two prices, and respondents count as non-buyers below their too-cheap price or at or above their too-expensive price. Stated intent overstates real purchasing, so the shares are discounted with calibration constants.");
+    b += para("The forecast multiplies the annual number of purchases in the market (N) by the share aware of and able to buy the product (A) and the calibrated purchase probability (P). N and A are the team's assumptions and should be tested against outside data.");
+
+    const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${b}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+
+    const zip = new JSZip();
+    zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`);
+    zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+    zip.file("word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${imgs.map((_, i) => `<Relationship Id="rIdImg${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chart${i + 1}.png"/>`).join("")}</Relationships>`);
+    zip.file("word/document.xml", doc);
+    zip.file("word/styles.xml", STYLES);
+    imgs.forEach((d, i) => zip.file(`word/media/chart${i + 1}.png`, d));
+
+    const blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = prod.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") + "_Pricing_Report.docx";
+    document.body.appendChild(a); a.click(); a.remove();
+    msg.textContent = "Report downloaded.";
+  } catch (x) { msg.textContent = "Could not build the report: " + x.message; }
+});
+
+/* ============================== demo data ============================== */
+function makeDemo() {
+  let seed = 11; const r = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const g = (m, s) => { let u = 0; while (!u) u = r(); return m + s * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
+  const r10 = x => Math.max(10, Math.round(x / 10) * 10);
+  const pick = cuts => { const u = r(); let acc = 0; for (const [k, p] of cuts) { acc += p; if (u < acc) return k; } return cuts[cuts.length - 1][0]; };
+  const I = ["I would definitely purchase", "I would probably purchase", "I might or might not purchase", "I would probably not purchase", "I would definitely not purchase"];
+  const H = {
+    ts: "Timestamp", q1: "How far do you live from campus?", q2: "How do you currently get to campus from home?",
+    tc: "At what price would this product be so cheap that you would doubt its quality?",
+    c: "At what price would this product be a bargain, a great buy for the money? (Acceptably cheap)",
+    e: "At what price would this product seem expensive, but you would still consider buying it? (Acceptably expensive)",
+    te: "At what price would this product be too expensive for you to consider?",
+    ic: "Look at the price you entered above for the BARGAIN (acceptably cheap) question. If the product were offered at that price, how likely would you be to purchase it within the next year?",
+    ie: "Look at the price you entered above for the EXPENSIVE BUT WOULD STILL CONSIDER (acceptably expensive) question. If the product were offered at that price, how likely would you be to purchase it within the next year?",
+    m: "What have we not thought of? (features, uses, concerns, anything we may be missing)",
+    im: "What could we improve about this product before detailed design begins?" };
+  const missed = ["Theft protection and a secure lock", "Battery range in summer heat", "Where to charge on campus", "Rental option for one semester", "Rider insurance"];
+  const improve = ["Lighter so it can be carried upstairs", "Foldable for classrooms", "Rain protection", "Brighter lights for night rides", "A cheaper base model"];
+  const rows = [];
+  for (let i = 0; i < 80; i++) {
+    const dist = pick([["Less than 1 mile", .1], ["1–3 miles", .82], ["More than 3 miles", .08]]);
+    const row = { [H.ts]: `10/${1 + (i % 28)}/2026 ${9 + (i % 9)}:${String(i % 60).padStart(2, "0")}:00`, [H.q1]: dist };
+    if (dist !== "1–3 miles") { rows.push(row); continue; } // screened out: form ended early
+    const mode = pick([["Walk", .35], ["Bicycle", .25], ["Bus / transit", .2], ["Car", .2]]);
+    // Each respondent has a personal price level; the four answers scale from it with noise,
+    // so the curves overlap like real survey data and PMC, OPP, IPP, and PME stay distinct.
+    const base = Math.max(150, g(450, 150)), jit = () => 1 + g(0, 0.1);
+    let p = [r10(base * 0.6 * jit()), r10(base * 0.85 * jit()), r10(base * 1.2 * jit()), r10(base * 1.55 * jit())];
+    if (r() > 0.05) { p.sort((a, b) => a - b); if (p[1] === p[2]) p[2] += 10; }
+    else p = [p[1], p[0], p[2], p[3]]; // a few out-of-order answers for the cleaning step
+    Object.assign(row, { [H.q2]: mode, [H.tc]: p[0], [H.c]: p[1], [H.e]: p[2], [H.te]: p[3],
+      [H.ic]: pick([[I[0], .3], [I[1], .35], [I[2], .22], [I[3], .09], [I[4], .04]]),
+      [H.ie]: pick([[I[0], .08], [I[1], .2], [I[2], .3], [I[3], .25], [I[4], .17]]),
+      [H.m]: r() < .3 ? missed[Math.floor(r() * missed.length)] : "", [H.im]: r() < .3 ? improve[Math.floor(r() * improve.length)] : "" });
+    rows.push(row);
+  }
+  return rows;
+}
+</script>
+</body>
+</html>
