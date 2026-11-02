@@ -71,12 +71,22 @@
   <section class="card">
     <span class="step">STEP 1</span>
     <h2>Load your survey responses</h2>
-    <p class="sub">In your Google Form's linked spreadsheet, choose <b>File → Download → Comma-separated values (.csv)</b> or <b>Microsoft Excel (.xlsx)</b>, then upload that file here. Your data stays in your browser.</p>
+    <p class="sub">Use the raw responses exactly as Google gives them; no reformatting needed. Any of these work:</p>
+    <ul class="sub" style="margin:6px 0 0 18px;padding:0">
+      <li><b>From the Google Form:</b> Responses tab → ⋮ menu → <b>Download responses (.csv)</b>. Upload the .zip file as-is.</li>
+      <li><b>From the linked spreadsheet:</b> File → Download → <b>.csv</b> (while on the Form Responses tab) or <b>.xlsx</b>. The right tab is found automatically.</li>
+      <li><b>Copy and paste:</b> on the Form Responses tab press Ctrl/⌘ + A, then Ctrl/⌘ + C, and paste into the box below.</li>
+    </ul>
     <div class="row" style="margin-top:14px">
-      <label class="btn btn-primary">Upload CSV or Excel file<input id="file" type="file" accept=".csv,.xlsx,.xls" class="hidden"></label>
+      <label class="btn btn-primary">Upload file (.zip, .csv, .xlsx)<input id="file" type="file" accept=".zip,.csv,.tsv,.txt,.xlsx,.xls" class="hidden"></label>
       <button class="btn btn-secondary" id="demoBtn">Try with demo data</button>
       <span id="srcInfo" class="sub"></span>
     </div>
+    <details style="margin-top:12px"><summary>Or paste responses from Google Sheets</summary>
+      <textarea id="pasteBox" style="margin-top:8px;height:110px" placeholder="Paste the whole Form Responses tab here, including the header row"></textarea>
+      <button class="btn btn-secondary" id="pasteBtn" style="margin-top:8px">Analyze pasted responses</button>
+    </details>
+    <p class="sub" style="margin-top:10px">Your data stays in your browser.</p>
     <div id="err" class="err"></div>
     <details style="margin-top:14px"><summary>Don't have a survey yet?</summary>
       <p class="sub" style="margin-top:6px">Make a copy of the class survey template, edit Part 1 (who qualifies) and Part 2 (your product description), then open the <b>Responses</b> tab and click <b>Link to Sheets</b>. Keep the wording of the four price questions and two purchase-intent questions, or match the columns manually in Step 2.</p>
@@ -213,7 +223,16 @@
 /* ============================== helpers ============================== */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const num = v => { if (v === null || v === undefined) return NaN; const s = String(v).replace(/[$,\s]/g, ""); return s === "" ? NaN : parseFloat(s); };
+// Reads typed price answers: "45", "$45.00", "about 50", "50 dollars", "1.5k", "40-60" (uses the midpoint)
+const num = v => {
+  if (v === null || v === undefined) return NaN;
+  if (typeof v === "number") return v;
+  const s = String(v).toLowerCase().replace(/,/g, "");
+  const m = s.match(/\d+(?:\.\d+)?\s*k?/g);
+  if (!m) return NaN;
+  const vals = m.slice(0, 2).map(x => parseFloat(x) * (/k/.test(x) ? 1000 : 1));
+  return vals.length === 2 && /\d\s*k?\s*(-|–|to)\s*\$?\s*\d/.test(s) ? (vals[0] + vals[1]) / 2 : vals[0];
+};
 const money = v => (v === null || v === undefined || isNaN(v)) ? "—" : "$" + (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v).toFixed(2));
 const pct = (v, d = 1) => (v === null || v === undefined || isNaN(v)) ? "—" : (v * 100).toFixed(d) + "%";
 const intentScore = v => {
@@ -243,19 +262,40 @@ const S = { rows: [], headers: [], map: {}, source: "", seg: { col: "", val: "" 
 /* ============================== loading ============================== */
 function showErr(m) { const e = $("#err"); e.textContent = m; e.style.display = m ? "block" : "none"; }
 
+const parseText = t => Papa.parse(String(t).replace(/^\uFEFF/, ""), { header: true, skipEmptyLines: true, transformHeader: h => h.trim() }).data;
+// How much a table looks like pricing-survey responses (number of survey questions recognized)
+const sheetScore = rows => rows.length ? Object.keys(detectMap(Object.keys(rows[0]))).length : 0;
+
 $("#file").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return; showErr("");
   try {
-    let rows;
-    if (/\.csv$/i.test(f.name)) {
-      rows = Papa.parse(await f.text(), { header: true, skipEmptyLines: true, transformHeader: h => h.trim() }).data;
-    } else {
+    let rows, src = f.name;
+    if (/\.zip$/i.test(f.name)) {                       // Google Forms "Download responses (.csv)"
+      const zip = await JSZip.loadAsync(await f.arrayBuffer());
+      const csv = Object.values(zip.files).find(z => !z.dir && /\.csv$/i.test(z.name));
+      if (!csv) throw new Error("no .csv file was found inside the zip");
+      rows = parseText(await csv.async("string")); src = `${f.name} › ${csv.name}`;
+    } else if (/\.(csv|tsv|txt)$/i.test(f.name)) {
+      rows = parseText(await f.text());
+    } else {                                             // Excel: pick the tab that looks most like form responses
       const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
-      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "", raw: false });
+      let best = null;
+      wb.SheetNames.forEach(n => {
+        const r = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: "", raw: false });
+        const s = sheetScore(r);
+        if (!best || s > best.s) best = { n, r, s };
+      });
+      rows = best.r; src = `${f.name} › ${best.n} tab`;
     }
-    loadRows(rows, f.name);
+    loadRows(rows, src);
   } catch (x) { showErr("Could not read that file: " + x.message); }
   e.target.value = "";
+});
+$("#pasteBtn").addEventListener("click", () => {
+  showErr("");
+  const t = $("#pasteBox").value.trim();
+  if (!t) { showErr("Paste your responses into the box first, including the header row."); return; }
+  loadRows(parseText(t), "pasted responses");
 });
 $("#demoBtn").addEventListener("click", () => loadRows(makeDemo(), "Demo data (synthetic scooter survey, 80 responses)"));
 
@@ -279,17 +319,17 @@ function detectMap(headers) {
   headers.forEach(h => {
     const s = h.toLowerCase().replace(/_/g, " ");
     if (/timestamp|email/.test(s)) return;
-    if (/likely|intent/.test(s)) {
-      if (/bargain|cheap/.test(s)) set("intentCheap", h);
-      else if (/expensive/.test(s)) set("intentExp", h);
+    if (/likely|intent|would you (buy|purchase)/.test(s)) {
+      if (/bargain|cheap|great (buy|deal|value)|good (deal|value)/.test(s)) set("intentCheap", h);
+      else if (/expensive|pricey|costly/.test(s)) set("intentExp", h);
       return;
     }
-    if (/too expensive/.test(s)) return set("tooExpensive", h);
-    if (/doubt|too cheap|so cheap/.test(s)) return set("tooCheap", h);
-    if (/bargain|acceptably cheap|\bcheap\b/.test(s)) return set("cheap", h);
-    if (/expensive/.test(s)) return set("expensive", h);
-    if (/thought of|missed|missing/.test(s)) return set("missed", h);
-    if (/improve/.test(s)) return set("improve", h);
+    if (/too expensive|too costly|too pricey|would not consider|wouldn't consider|out of the question/.test(s)) return set("tooExpensive", h);
+    if (/doubt|too cheap|so cheap|question (its|the) quality|suspicious/.test(s)) return set("tooCheap", h);
+    if (/bargain|great (buy|deal|value)|good (deal|value)|acceptably cheap|\bcheap\b/.test(s)) return set("cheap", h);
+    if (/expensive|pricey|costly/.test(s)) return set("expensive", h);
+    if (/thought of|missed|missing|overlook/.test(s)) return set("missed", h);
+    if (/improve|suggestion/.test(s)) return set("improve", h);
   });
   return m;
 }
